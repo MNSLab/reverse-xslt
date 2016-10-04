@@ -20,3 +20,5 @@ end
 require 'reverse_xslt/token/tag_token'
 require 'reverse_xslt/token/text_token'
 require 'reverse_xslt/token/if_token'
+require 'reverse_xslt/token/value_of_token'
+require 'reverse_xslt/token/for_each_token'

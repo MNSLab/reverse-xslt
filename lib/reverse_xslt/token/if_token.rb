@@ -2,7 +2,7 @@ module ReverseXSLT
   module Token
     class IfToken < Token
       def initialize(tag)
-        super(:if, tokenize(tag.attr('test')))
+        super(:if, Token::tokenize(tag.attr('test')))
       end
     end
   end

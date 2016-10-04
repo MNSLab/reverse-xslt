@@ -46,7 +46,6 @@ module ReverseXSLT
     when Nokogiri::XML::Text
       Token::TextToken.new(node)
     when Nokogiri::XML::Element
-      puts "="*100+"#{node.namespace}"+"="*100
       res = case (node.namespace && node.namespace.prefix)
       when nil
         Token::TagToken.new(node)
