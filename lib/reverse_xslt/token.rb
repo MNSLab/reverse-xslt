@@ -1,3 +1,0 @@
-class ReverseXSLT::Token
-
-end
