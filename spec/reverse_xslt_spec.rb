@@ -409,8 +409,8 @@ describe ReverseXSLT do
       it 'allows to match or not given content' do
         doc_1 = [if_token('var'){[tag_token('div')]}]
         expect(match([], [tag_token('span')])).to be_nil
-        #expect(match(doc_1, [])).to_not be_nil
-        #expect(match(doc_1, [tag_token('div')])).to_not be_nil
+        expect(match(doc_1, [])).to_not be_nil
+        expect(match(doc_1, [tag_token('div')])).to_not be_nil
         expect(match(doc_1, [tag_token('span')])).to be_nil
       end
 
@@ -457,8 +457,53 @@ describe ReverseXSLT do
         expect(match(doc_1, [tag_token('div')])).to_not be nil
       end
 
-      it 'simulate POST problem (PCP)' do
-        pending
+      it 'simulate POST problem (PCP)'
+
+      it 'works with real life examples' do
+        xml_1 = %(
+          <div>
+            <xsl:if test="(//a:pozycja != '') and (//a:data_publikacji != '') and (//a:biuletyn != '')">
+            Ogłoszenie nr
+            <xsl:value-of select="//a:pozycja"/>
+            -
+            <xsl:value-of select="//a:biuletyn"/>
+            z dnia
+            <xsl:value-of select="//a:data_publikacji"/>
+            r.
+            </xsl:if>
+          </div>
+          <div class="headerMedium_xforms" style="text-align: center">
+            <xsl:value-of select="//a:zamawiajacy_miejscowosc"/>
+            :
+            <xsl:value-of select="//a:nazwa_nadana_zamowieniu"/>
+            <br/>
+            OGŁOSZENIE O ZAMÓWIENIU -
+            <xsl:if test="//a:rodzaj_zamowienia = '0'">Roboty budowlane</xsl:if>
+            <xsl:if test="//a:rodzaj_zamowienia = '1'">Dostawy</xsl:if>
+            <xsl:if test="//a:rodzaj_zamowienia = '2'">Usługi</xsl:if>
+          </div>
+          <div>
+            <b>Zamieszczanie ogłoszenia:</b>
+            <xsl:if test="//a:zamieszczanie_obowiazkowe = '1'">obowiązkowe</xsl:if>
+            <xsl:if test="//a:zamieszczanie_obowiazkowe != '1'">nieobowiązkowe</xsl:if>
+          </div>
+        )
+
+        xml_2 = %(
+          <div>
+            Ogłoszenie nr 319424 - 2016
+            z dnia 2016-10-07 r.
+          </div><div class="headerMedium_xforms" style="text-align: center">Kraków: Wykonanie robót budowlanych w zakresie bieżącej konserwacji pomieszczeń budynku na os. Krakowiaków 46 w Krakowie<br />
+          OGŁOSZENIE O ZAMÓWIENIU -
+
+            Roboty budowlane
+          </div><div><b>Zamieszczanie ogłoszenia:</b>
+            obowiązkowe
+          </div>
+        )
+
+        res = match(parse(xml_1), parse(xml_2))
+        expect(res).to_not be_nil
       end
     end
   end

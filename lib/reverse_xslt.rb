@@ -126,13 +126,20 @@ module ReverseXSLT
   private
 
   # Match series of TextToken and ValueOfToken to TextToken
+  #
   # @param tokens [Array<Token>] array of TextToken and ValueOfToken
   # @param text [String] text token
   # @param prefix_match [Boolean] it is required to only match text prefix
+  # @param group_matchings [Hash<String, [Token, Token]>] define boundaries
   #
   # @return [Hash] hash of matched variables
+  #   Hash[if-token] = {_: 'text of whole matched tree', other matched elements}
+  #   Hash[for-each-token] = [{first occurence}, {second occurence}, ..]
+  #   Hash[value-of-token] = 'text'
+  #   tag-token and text-token don't have match entry
   # @return [nil] when tokens doesn't match text
-  def self.text_matching(tokens, text, prefix_match = false)
+  #
+  def self.text_matching(tokens, text, prefix_match = false, group_matchings = {})
     # check for consecuting value-of tokens
     tokens.each_with_index do |x, i|
       raise Error::ConsecutiveValueOfToken if (i > 0) and (tokens[i-1].class == x.class)
@@ -223,14 +230,6 @@ module ReverseXSLT
   # @param text [TextToken/nil] text prefix of xml document
   # @param tokens_xml [Array<Token>] rest of xml document starting with tag-token
   def self.match_recursive(text_prefix, tokens_xslt, text, tokens_xml)
-    # puts "v"*100
-    # puts text_prefix.inspect
-    # puts tokens_xslt.inspect
-    # puts text.inspect
-    # puts tokens_xml.inspect
-    # puts "^"*100
-
-
     # extract text tokens from xslt
     text_prefix_2, tokens_xslt = text_prefix(tokens_xslt)
     text_prefix = merge_text_tokens(text_prefix + text_prefix_2) # update text prefix
