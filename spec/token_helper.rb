@@ -9,7 +9,7 @@ module TokenHelper
 
   def if_token(name, &block)
     res = ReverseXSLT::Token::IfToken.new(name)
-    res.children = block.call if block_given?
+    res.children = yield if block_given?
     res
   end
 

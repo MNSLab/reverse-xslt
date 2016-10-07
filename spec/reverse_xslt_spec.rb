@@ -172,6 +172,12 @@ describe ReverseXSLT do
         )).to eq({'var' => 'my lovely beautiful'})
       end
 
+      it 'doesn\'t match empty to anything' do
+        expect(match([], [])).to_not be_nil
+        expect(match([], [text_token('hello')])).to be_nil
+        expect(match([], [tag_token('div')])).to be_nil
+      end
+
       it 'match simple value-of to text' do
         doc_1 = [value_of_token('var')]
         doc_2 = [text_token('hello world')]
@@ -397,6 +403,63 @@ describe ReverseXSLT do
         })
       end
 
+    end
+
+    context 'using if token' do
+      it 'allows to match or not given content' do
+        doc_1 = [if_token('var'){[tag_token('div')]}]
+        expect(match([], [tag_token('span')])).to be_nil
+        #expect(match(doc_1, [])).to_not be_nil
+        #expect(match(doc_1, [tag_token('div')])).to_not be_nil
+        expect(match(doc_1, [tag_token('span')])).to be_nil
+      end
+
+      it 'does simple matching' do
+        doc_1 = [
+          text_token('count:'),
+          if_token('var'){[value_of_token('count'), text_token('users')]}, text_token('here')
+        ]
+
+        expect(match([text_token('count:'), text_token('here')], [text_token('count:   here')])).to_not be_nil
+        expect(match(doc_1, [text_token('count:   here')])).to_not be_nil
+
+        expect(match([text_token('count:'), value_of_token('count'), text_token('users'), text_token('here')], [text_token('count: 42   users here')])).to_not be_nil
+        expect(match(doc_1, [text_token('count: 42   users here')])).to_not be_nil
+      end
+
+      it 'does simple matching and store if-token matching' do
+        doc_1 = [
+          text_token('count:'),
+          if_token('var'){[value_of_token('count'), text_token('users')]}, text_token('here')
+        ]
+
+        expect(match(doc_1, [text_token('count: 42   users here')])).to eq({'var' => '42 users', 'count' => '42'})
+      end
+
+      it 'can simulate case statement' do
+        doc_1 = [
+          text_token('color:'),
+          if_token('var'){[text_token('red')]},
+          if_token('var'){[text_token('green')]},
+          if_token('var'){[text_token('blue')]}
+        ]
+
+        expect(match(doc_1, [text_token('color: red')])).to eq({'var' => 'red'})
+        expect(match(doc_1, [text_token('color: green')])).to eq({'var' => 'green'})
+        expect(match(doc_1, [text_token('color: blue')])).to eq({'var' => 'blue'})
+        expect(match(doc_1, [text_token('color: yellow')])).to be_nil
+      end
+
+      it 'runs at the same level' do
+        doc_1 = [
+          if_token('var') { [tag_token('div')] }
+        ]
+        expect(match(doc_1, [tag_token('div')])).to_not be nil
+      end
+
+      it 'simulate POST problem (PCP)' do
+        pending
+      end
     end
   end
 end
