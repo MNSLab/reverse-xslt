@@ -2,11 +2,7 @@ module ReverseXSLT
   module Token
     class TextToken < Token
       def initialize(tag = '')
-        text = if tag.is_a? Nokogiri::XML::Text
-          tag.text
-        else
-          tag.to_s
-        end
+        text = tag.respond_to?(:text) ? tag.text : tag.to_s
 
         super(:text, text)
       end

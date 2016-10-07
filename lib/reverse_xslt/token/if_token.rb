@@ -7,11 +7,7 @@ module ReverseXSLT
       # @param tag [Nokogiri::XML::Element] XML element, its `test` attribute will be used to name token
       #
       def initialize(tag = '')
-        name = if tag.is_a? Nokogiri::XML::Element
-          Token::tokenize(tag.attr('test'))
-        else
-          tag.to_s
-        end
+        name = extract_element_attribute(tag, 'test')
 
         super(:if, Token::tokenize(name))
       end

@@ -1,11 +1,7 @@
 module ReverseXSLT::Token
   class TagToken < Token
     def initialize(tag = '')
-      name = if tag.is_a? Nokogiri::XML::Element
-        tag.name
-      else
-        tag
-      end
+      name = tag.respond_to?(:name) ? tag.name : tag
 
       super(:tag, name)
     end

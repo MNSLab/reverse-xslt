@@ -26,6 +26,16 @@ module ReverseXSLT
       def self.tokenize(text)
         text.gsub(/[a-z]+:/,'').gsub(/(?<=[^_a-z])(not|or|and)(?=[^_a-z])/,'_').gsub(/(?<=[^_a-z])(not|or|and)\z/,'_').gsub(/^(not|or|and)(?=[^_a-z])/,'_').gsub(/[^_a-z]/, '_').gsub(/[_]+/, '_').gsub(/\A_+/, '').gsub(/_+\z/, '')
       end
+
+      private
+
+      def extract_element_attribute(element, attr)
+        if element.respond_to? :attr
+          element.attr(attr)
+        else
+          element.to_s
+        end
+      end
     end
   end
 end
