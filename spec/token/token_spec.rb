@@ -54,4 +54,53 @@ describe ReverseXSLT::Token do
 
 
   end
+
+  describe 'token creation' do
+    let(:xml) { %q[<xml xmlns:xsl="http://www.w3.org/1999/XSL/Transform">%s</xml>] }
+
+    it 'allows create IfToken from Nokogiri::XML::Element or string' do
+      doc = Nokogiri::XML(xml % '<xsl:if test="a:var"></xsl:if>')
+
+      token_1 = ReverseXSLT::Token::IfToken.new(doc.at('xsl|if'))
+      token_2 = ReverseXSLT::Token::IfToken.new('var')
+
+      expect(token_1).to eq(token_2)
+    end
+
+    it 'allows create ValueOfToken from Nokogiri::XML::Element or string' do
+      doc = Nokogiri::XML(xml % '<xsl:value-of select="//a:var"/>')
+
+      token_1 = ReverseXSLT::Token::ValueOfToken.new(doc.at('xsl|value-of'))
+      token_2 = ReverseXSLT::Token::ValueOfToken.new('var')
+
+      expect(token_1).to eq(token_2)
+    end
+
+    it 'allows create ForEachToken from Nokogiri::XML::Element or string' do
+      doc = Nokogiri::XML(xml % '<xsl:for-each select="//a:var"></xsl:for-each>')
+
+      token_1 = ReverseXSLT::Token::ForEachToken.new(doc.at('xsl|for-each'))
+      token_2 = ReverseXSLT::Token::ForEachToken.new('var')
+
+      expect(token_1).to eq(token_2)
+    end
+
+    it 'allows create TextToken from Nokogiri::XML::Text or string' do
+      doc = Nokogiri::XML(xml % 'hello world')
+
+      token_1 = ReverseXSLT::Token::TextToken.new(doc.root.children.first)
+      token_2 = ReverseXSLT::Token::TextToken.new('hello world')
+
+      expect(token_1).to eq(token_2)
+    end
+
+    it 'allows create TagToken from Nokogiri::XML::Element or string' do
+      doc = Nokogiri::XML(xml % '<div></div>')
+
+      token_1 = ReverseXSLT::Token::TagToken.new(doc.root.children.first)
+      token_2 = ReverseXSLT::Token::TagToken.new('div')
+
+      expect(token_1).to eq(token_2)
+    end
+  end
 end

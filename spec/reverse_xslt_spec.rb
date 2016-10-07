@@ -1,6 +1,8 @@
 require 'spec_helper'
+require 'token_helper'
 
 describe ReverseXSLT do
+  include TokenHelper
   it 'has a version number' do
     expect(ReverseXSLT::VERSION).not_to be nil
   end
@@ -91,44 +93,43 @@ describe ReverseXSLT do
         expect(item.children).to be_empty
       end
     end
+
+    it 'parse documents without defined namespace' do
+      content = [for_each_node, if_node, comment_node, value_of_node, tag_node, text_node].join ''
+      doc_1 = ReverseXSLT::parse(Nokogiri::XML(xml % content).children)
+      doc_2 = ReverseXSLT::parse(content)
+
+      expect(doc_1).to eq(doc_2)
+    end
   end
 
   describe '.parse(doc)' do
     it 'accepts nokogiri::XML as doc' do
-      pending
       doc = Nokogiri::XML('<div></div>')
 
-      expect {
-        ReverseXSLT::parse(doc)
-      }.to be_a(Token)
+      res = ReverseXSLT::parse(doc)
+      expect(res).to be_a(Array)
+      expect(res.length).to eq(1)
+      expect(res.first).to be_a(ReverseXSLT::Token::TagToken)
     end
 
     it 'accepts String as doc' do
-      pending
-      expect{
-        ReverseXSLT::parse('<div></div>')
-      }.to be_a(Token)
-    end
+      res = ReverseXSLT::parse('<div></div>')
 
-    context 'doc has single root' do
-      it 'returns token' do
-        pending
-        expect{
-          ReverseXSLT::parse('<div></div>')
-        }.to be_a(Token)
-      end
+      expect(res).to be_a(Array)
+      expect(res.length).to eq(1)
+      expect(res.first).to be_a(ReverseXSLT::Token::TagToken)
     end
 
     context 'doc has multiply roots' do
       it 'returns list of tokens' do
-        pending
         results = ReverseXSLT::parse('<a></a><b></b><c></c>')
 
         expect(results).to be_a(Array)
         expect(results.length).to eq(3)
 
         ['a', 'b', 'c'].each_with_index do |x,i|
-          expect(results[i]).to be_a(Token::TagToken)
+          expect(results[i]).to be_a(ReverseXSLT::Token::TagToken)
           expect(results[i].value).to eq(x)
         end
       end
@@ -140,6 +141,262 @@ describe ReverseXSLT do
   end
 
   describe '::match(xslt, xml)' do
-    it 'throws exception on two conseciuting text nodes'
+    it 'raises error when xslt or xml has illegal format' do
+      tag = tag_token('div')
+
+      expect {
+        ReverseXSLT::match(tag, tag)
+      }.to raise_error(ReverseXSLT::Error::IllegalMatchUse)
+
+      expect {
+        ReverseXSLT::match(tag, [tag])
+      }.to raise_error(ReverseXSLT::Error::IllegalMatchUse)
+
+      expect {
+        ReverseXSLT::match([tag], tag)
+      }.to raise_error(ReverseXSLT::Error::IllegalMatchUse)
+
+      expect {
+        ReverseXSLT::match([tag], [tag])
+      }.not_to raise_error
+    end
+    context 'using ValueOfToken and TextToken' do
+      it 'trims whitespaces from text and matching' do
+        expect(match([value_of_token('var')], [text_token('     a      b   e     ')])).to eq({'var' => 'a b e'})
+
+        expect(match([text_token('hello world  ')], [text_token("  hello  \n\t\r   world  ")])).to_not be_nil
+
+        expect(match(
+          [text_token('    hello  '), value_of_token('var'), text_token('  world  ')],
+          [text_token("hello  my       lovely \n\nbeautiful  world")]
+        )).to eq({'var' => 'my lovely beautiful'})
+      end
+
+      it 'match simple value-of to text' do
+        doc_1 = [value_of_token('var')]
+        doc_2 = [text_token('hello world')]
+
+        res = ReverseXSLT::match(doc_1, doc_2)
+
+        expect(res).to be_a(Hash)
+        expect(res['var']).to eq('hello world')
+      end
+
+      it 'match value-of+text to text' do
+        doc_1 = [value_of_token('var'), text_token('world')]
+        doc_2 = [text_token('hello world')]
+
+        res = ReverseXSLT::match(doc_1, doc_2)
+        expect(res).to be_a(Hash)
+        expect(res['var']).to eq('hello')
+      end
+
+      it 'match text+value_of to text' do
+        doc_1 = [text_token('hello'), value_of_token('var')]
+        doc_2 = [text_token('hello world')]
+
+        res = ReverseXSLT::match(doc_1, doc_2)
+        expect(res).to be_a(Hash)
+        expect(res['var']).to eq('world')
+      end
+
+      it 'match text+value_of+text to text' do
+        doc_1 = [text_token('hello'), value_of_token('var'), text_token('world')]
+        doc_2 = [text_token('hello beautiful world')]
+
+        res = ReverseXSLT::match(doc_1, doc_2)
+        expect(res).to be_a(Hash)
+        expect(res['var']).to eq('beautiful')
+      end
+
+      it 'match value_of+text+value_of to text' do
+        doc_1 = [value_of_token('var_a'), text_token('beautiful'), value_of_token('var_b')]
+        doc_2 = [text_token('hello beautiful world')]
+
+        res = ReverseXSLT::match(doc_1, doc_2)
+        expect(res).to be_a(Hash)
+        expect(res['var_a']).to eq('hello')
+        expect(res['var_b']).to eq('world')
+      end
+
+      it 'throws error on value-of+value-of to text match' do
+        doc_1 = [value_of_token('var_a'), value_of_token('var_b')]
+        doc_2 = [text_token('hello world')]
+
+        expect {
+          ReverseXSLT::match(doc_1, doc_2)
+        }.to raise_error(ReverseXSLT::Error::ConsecutiveValueOfToken)
+      end
+
+      it 'throws error on value-of to value-of match' do
+        expect {
+          ReverseXSLT::match([value_of_token('var_a')], [value_of_token('var_b')])
+        }.to raise_error(ReverseXSLT::Error::DisallowedMatch)
+      end
+
+      it 'return nil when there is no match' do
+        doc_1 = [value_of_token('var'), text_token('hello')]
+        doc_2 = [text_token('hello world')]
+
+        expect(ReverseXSLT::match(doc_1, doc_2)).to be_nil
+
+        doc_1[1] = text_token('hello world')
+        expect(ReverseXSLT::match(doc_1, doc_2)).to_not be_nil
+      end
+
+      it 'return nil when match is not full' do
+        doc_1 = [value_of_token('var_a'), text_token('beautiful')]
+        doc_2 = [text_token('hello beautiful world')]
+
+        expect(ReverseXSLT::match(doc_1, doc_2)).to be_nil
+
+        doc_1 << value_of_token('var_b')
+        expect(ReverseXSLT::match(doc_1, doc_2)).to_not be_nil
+      end
+
+      it 'join consecuting text tokens' do
+        doc_1 = [text_token('hello world')]
+        doc_2 = [text_token('hello'), text_token('world')]
+
+        expect(ReverseXSLT::match(doc_1, doc_2)).to_not be_nil
+        expect(ReverseXSLT::match(doc_2, doc_1)).to_not be_nil
+      end
+
+      it 'match value-of to text+text' do
+        doc_1 = [value_of_token('var')]
+        doc_2 = [text_token('hello'), text_token('world')]
+
+        res = ReverseXSLT::match(doc_1, doc_2)
+        expect(res).to be_a(Hash)
+        expect(res['var']).to eq('hello world')
+      end
+
+      it 'allow value-of to match empty string' do
+        doc_1 = [text_token('hello'), value_of_token('var'), text_token('world')]
+        doc_2 = [text_token('hello world')]
+
+        res = ReverseXSLT::match(doc_1, doc_2)
+        expect(res).to be_a(Hash)
+        expect(res['var']).to eq('')
+      end
+
+      it 'allow value-of+value-of matching when additional regexp is defined'
+
+      it 'throws error on duplicated value-of token name' do
+        doc_1 = [value_of_token('var'), text_token(":"), value_of_token('var')]
+        doc_2 = [text_token("color: blue")]
+
+        expect {
+          match(doc_1, doc_2)
+        }.to raise_error(ReverseXSLT::Error::DuplicatedValueOfToken)
+      end
+
+      it 'works on real life examples' do
+        text_1 = %(
+          Ogłoszenie nr
+          <xsl:value-of select="//a:pozycja"/>
+          -
+          <xsl:value-of select="//a:biuletyn"/>
+          z dnia
+          <xsl:value-of select="//a:data_publikacji"/>
+          r.)
+
+        text_2 = %(
+          Ogłoszenie nr 319020 - 2016
+          z dnia 2016-10-06 r.
+        )
+
+        doc_1 = ReverseXSLT::parse(text_1)
+        doc_2 = ReverseXSLT::parse(text_2)
+
+        res = ReverseXSLT::match(doc_1, doc_2)
+
+        expect(res).to be_a(Hash)
+        expect(res.length).to eq(3)
+
+        expect(res['pozycja']).to eq('319020')
+        expect(res['biuletyn']).to eq('2016')
+        expect(res['data_publikacji']).to eq('2016-10-06')
+      end
+    end
+
+    context 'using value-of, text and tag tokens' do
+      it 'match tag+value-of+tag to tag+tag' do #empty value-of production
+        doc_1 = parse('<div></div><xsl:value-of select="var" /><span></span>')
+        doc_2 = parse('<div></div><span></span>')
+
+        expect(match(doc_1, doc_2)).to eq({'var' => ''})
+      end
+
+      it 'doesn\'t matched tag to text or value-of' do
+        doc_1 = parse('hello beautiful world')
+        doc_2 = parse('hello world')
+        doc_3 = parse('hello <xsl:value-of select="var"/> wordl')
+        doc_4 = parse('hello <beautiful /> world')
+
+        expect(match(doc_1, doc_4)).to be_nil
+        expect(match(doc_2, doc_4)).to be_nil
+        expect(match(doc_3, doc_4)).to be_nil
+      end
+
+      it 'match tag only to tag' do
+        doc_1 = [tag_token('div')]
+        expect(ReverseXSLT::match(doc_1, [tag_token('div')] )).to be_a(Hash)
+        expect(ReverseXSLT::match(doc_1, [tag_token('span')] )).to be_nil
+        expect(ReverseXSLT::match(doc_1, [text_token("div")] )).to be_nil
+      end
+
+      it 'match tag content recursivly' do
+        doc_1 = parse('<div><a>quote of the day: <span><xsl:value-of select="var" /></span></a></div>')
+        doc_2 = parse('<div><a>quote of the day: <span>hello world</span></a></div>')
+
+        expect(match(doc_1, doc_2)).to eq({'var' => 'hello world'})
+      end
+
+      it 'works with real life examples' do
+        xml_1 = %(
+          <div>
+            Ogłoszenie nr
+            <xsl:value-of select="//a:pozycja"/>
+            -
+            <xsl:value-of select="//a:biuletyn"/>
+            z dnia
+            <xsl:value-of select="//a:data_publikacji"/>
+            r.
+          </div>
+          <div class="headerMedium_xforms" style="text-align: center">
+            <xsl:value-of select="//a:zamawiajacy_miejscowosc"/>
+            :
+            <xsl:value-of select="//a:nazwa_nadana_zamowieniu"/>
+            <br/>
+            OGŁOSZENIE O ZAMÓWIENIU -
+            <xsl:value-of select="//a:rodzaj_zamowienia"/>
+          </div>
+        )
+
+        xml_2 = %(
+          <div>
+            Ogłoszenie nr 319424 - 2016
+            z dnia 2016-10-07 r.
+          </div><div class="headerMedium_xforms" style="text-align: center">Kraków: Wykonanie robót budowlanych w zakresie bieżącej konserwacji pomieszczeń budynku na os. Krakowiaków 46 w Krakowie<br />
+          OGŁOSZENIE O ZAMÓWIENIU -
+
+            Roboty budowlane
+          </div>
+        )
+
+        res = match(parse(xml_1), parse(xml_2))
+
+        expect(res).to eq({
+          'pozycja' => '319424',
+          'biuletyn' => '2016',
+          'data_publikacji' => '2016-10-07',
+          'zamawiajacy_miejscowosc' =>'Kraków',
+          'nazwa_nadana_zamowieniu' => 'Wykonanie robót budowlanych w zakresie bieżącej konserwacji pomieszczeń budynku na os. Krakowiaków 46 w Krakowie',
+          'rodzaj_zamowienia' => 'Roboty budowlane'
+        })
+      end
+
+    end
   end
 end

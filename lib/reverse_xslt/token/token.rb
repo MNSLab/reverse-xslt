@@ -4,6 +4,10 @@ module ReverseXSLT
       attr_reader :type, :value
       attr_accessor :children
 
+      def ==(other)
+        self.class == other.class && self.type == other.type && self.value == other.value && self.children == other.children
+      end
+      
       def initialize(type, value)
         @type = type
         @value = value
