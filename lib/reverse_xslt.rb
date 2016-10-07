@@ -30,49 +30,12 @@ module ReverseXSLT
   # @return [nil] when xslt doesn't match xml
   def self.match(xslt, xml)
     raise Error::IllegalMatchUse unless (xslt.is_a? Array) and (xml.is_a? Array)
-    #
-    # xslt = merge_text_tokens(xslt)
-    # xml  = merge_text_tokens(xml)
-    #
-    # results = {}
-    #
-    # # INFO: v0.1 xslt,xml contains only TEXT, TAG, VALUE-OF tokens
-    # matchings = []
-    # while true
-    #   tp1, tl1 = text_prefix(xslt)
-    #   tp2, tl2 = text_prefix(xml)
-    #
-    #   raise ReverseXSLT::Error::MalformedTree if tp2.length > 1
-    #   raise ReverseXSLT::Error::DisallowedMatch unless tp2.first.class == Token::TextToken or tp2.first.nil?
-    #
-    #   matchings << [tp1, (tp2.first && tp2.first.value) || '']
-    #   hd1 = tl1.shift
-    #   hd2 = tl2.shift
-    #
-    #   return nil if hd1.class != hd2.class
-    #
-    #   break if hd1.nil?
-    #
-    #   raise ReverseXSLT::Error::MalformedTree unless hd1.is_a? ReverseXSLT::Token::TagToken
-    #
-    #   return nil unless hd1.value == hd2.value
-    #   res = match(hd1.children, hd2.children)
-    #   return nil if res.nil?
-    #
-    #   merge_matchings!(results, res)
-    #
-    #   xslt, xml = tl1, tl2
-    # end
-    #
-    # matchings.each do |m1, m2|
-    #   res = text_matching(m1, m2)
-    #   return nil if res.nil?
-    #
-    #   merge_matchings!(results, res)
-    # end
-    #
-    # return results
-    match_recursive([], xslt, [], xml)
+
+    matching = match_recursive([], xslt, [], xml)
+    return nil if matching.nil?
+    # binding.pry
+    extract_matching(matching)
+
   end
 
   # Check if xml match structure of xslt (could be generated from)
@@ -149,10 +112,10 @@ module ReverseXSLT
     used_names = []
     re = tokens.map do |token|
       case token
-      when ReverseXSLT::Token::TextToken
+      when Token::TextToken
         Regexp.quote(token.value.gsub(/\s+/, ' ').strip)
-      when ReverseXSLT::Token::ValueOfToken
-        raise Error::DuplicatedValueOfToken if used_names.include? token.value
+      when Token::ValueOfToken
+        raise Error::DuplicatedTokenName if used_names.include? token.value
         used_names << token.value
         "(?<#{token.value}>.*)"
       else
@@ -165,13 +128,18 @@ module ReverseXSLT
 
     re = '\A'+re+(prefix_match ? '' : '\z')
 
-    res = text.match(Regexp.new(re))
+    matching = text.match(Regexp.new(re))
 
-    return nil if res.nil?
+    return nil if matching.nil?
 
-    res = Hash[res.names.map{|name| [name, res[name].strip]}]
+    #res = Hash[res.names.map{|name| [name, res[name].strip]}]
 
-    return res
+    #return res
+    tokens.each do |token|
+      if token.is_a? Token::ValueOfToken
+        token.matching = matching[token.value].strip
+      end
+    end
   end
 
   # extract text (TextToken and ValueOfToken) prefix.
@@ -218,7 +186,7 @@ module ReverseXSLT
   #
   # @return [Hash]
   def self.merge_matchings!(x, y)
-    raise Error::DuplicatedValueOfToken unless (x.keys & y.keys).empty?
+    raise Error::DuplicatedTokenName unless (x.keys & y.keys).empty?
     x.merge! y
   end
 
@@ -242,10 +210,9 @@ module ReverseXSLT
     raise Error::DisallowedMatch unless text.first.is_a? Token::TextToken or text.first.nil?
 
 
-
     # read first non text token
     token = tokens_xslt.shift
-    # TODO: we should check for empty array inside of nil token
+    # TODO: we should check for empty array instead of nil token
     case token
     when Token::TagToken
       other = tokens_xml.shift
@@ -258,28 +225,34 @@ module ReverseXSLT
       return nil if text_matching.nil?
 
       # match tags content
-      tags_matching = match(token.children, other.children)
+      tag_matching = match(token.children, other.children)
+      return nil if tag_matching.nil?
+      token.matching = tag_matching
 
       # match rest of document
       recursive_matching = match_recursive([], tokens_xslt, [], tokens_xml)
+      return nil if recursive_matching.nil?
 
-      merge_matchings!(text_matching, tags_matching)
-      merge_matchings!(text_matching, recursive_matching)
-
-      return text_matching
+      return text_matching + [token] + recursive_matching
     when Token::IfToken
       # matching without IF
       res_1 = match_recursive(text_prefix, tokens_xslt, text, tokens_xml)
 
       # matching with IF
-      res_2 = match_recursive(text_prefix, token.children + tokens_xslt, text, tokens_xml)
+      clone = tokens_xslt.map(&:clone)
+      res_2 = match_recursive(text_prefix, token.children + clone, text, tokens_xml)
 
       if res_1.nil?
         return nil if res_2.nil?
-        return res_2
+
+        token.matching = extract_matching(token.children)
+        token.matching[:_] = extract_text(token.children)
+
+        return [token] + clone
       else
-        return res_1 if res_2.nil?
-        raise Error::AmbiguousMatch
+        raise Error::AmbiguousMatch unless res_2.nil?
+        token.matching = nil
+        return [token] + tokens_xslt
       end
     when Token::ForEachToken
 
@@ -288,7 +261,43 @@ module ReverseXSLT
 
       return text_matching(text_prefix, (text.first && text.first.value) || '')
     else
+      puts "v"*50
+      puts token.inspect
+      puts "^"*50
       raise ArgumentError('Aaaaaaaa!!!!')
     end
+  end
+
+  def self.extract_matching(tokens)
+    res = {}
+    tokens.each do |token|
+      case token
+      when Token::TagToken
+        res.merge! token.matching
+      when Token::IfToken, Token::ForEachToken, Token::ValueOfToken
+        unless token.matching.nil?
+          raise Error::DuplicatedTokenName if res[token.value]
+          res[token.value] = token.matching
+        end
+      end
+    end
+    res
+  end
+
+  def self.extract_text(tokens)
+    tokens.map do |token|
+      case token
+      when Token::TextToken
+        token.value
+      when Token::IfToken, Token::ForEachToken
+        (token.matching && token.matching[:_])
+      when Token::ValueOfToken
+        token.matching
+      when Token::TagToken
+        extract_text(token.children)
+      else
+        nil
+      end
+    end.compact.join(' ').gsub(/\s+/, ' ')
   end
 end

@@ -1,6 +1,6 @@
 module ReverseXSLT::Token
   class TagToken < Token
-    def initialize(tag)
+    def initialize(tag = '')
       name = if tag.is_a? Nokogiri::XML::Element
         tag.name
       else

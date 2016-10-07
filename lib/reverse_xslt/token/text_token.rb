@@ -1,7 +1,7 @@
 module ReverseXSLT
   module Token
     class TextToken < Token
-      def initialize(tag)
+      def initialize(tag = '')
         text = if tag.is_a? Nokogiri::XML::Text
           tag.text
         else

@@ -8,7 +8,7 @@ module ReverseXSLT::Error
   class IllegalMatchUse < StandardError; end
 
   # throw when there are two value-of matches with the same name
-  class DuplicatedValueOfToken < StandardError; end
+  class DuplicatedTokenName < StandardError; end
 
   # raised when if/for-each token produce multiple matching
   class AmbiguousMatch < StandardError; end

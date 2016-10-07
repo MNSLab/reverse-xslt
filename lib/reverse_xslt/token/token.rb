@@ -2,16 +2,25 @@ module ReverseXSLT
   module Token
     class Token
       attr_reader :type, :value
-      attr_accessor :children
+      attr_accessor :children, :matching
 
       def ==(other)
         self.class == other.class && self.type == other.type && self.value == other.value && self.children == other.children
       end
-      
+
       def initialize(type, value)
         @type = type
         @value = value
         @children = []
+        @matching = nil
+      end
+
+      def clone()
+        res = self.class.new()
+        res.instance_variable_set('@type', self.type)
+        res.instance_variable_set('@value', self.value)
+        res.children = self.children.map{|child| child.clone}
+        res
       end
 
       def self.tokenize(text)

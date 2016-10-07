@@ -294,7 +294,7 @@ describe ReverseXSLT do
 
         expect {
           match(doc_1, doc_2)
-        }.to raise_error(ReverseXSLT::Error::DuplicatedValueOfToken)
+        }.to raise_error(ReverseXSLT::Error::DuplicatedTokenName)
       end
 
       it 'works on real life examples' do
@@ -432,8 +432,31 @@ describe ReverseXSLT do
           text_token('count:'),
           if_token('var'){[value_of_token('count'), text_token('users')]}, text_token('here')
         ]
+        exp = {
+          'var' => {
+            'count' => '42',
+            :_ => '42 users'
+          }
+        }
+        expect(match(doc_1, [text_token('count: 42   users here')])).to eq(exp)
+      end
 
-        expect(match(doc_1, [text_token('count: 42   users here')])).to eq({'var' => '42 users', 'count' => '42'})
+      it 'raise error when match multiple if-token with the same name' do
+        doc_1 = [
+          if_token('var'){[text_token('red')]},
+          tag_token('div'),
+          if_token('var'){[text_token('red')]}
+        ]
+
+        expect {
+          match(doc_1, parse('red<div></div>red'))
+        }.to raise_error(ReverseXSLT::Error::DuplicatedTokenName)
+
+        expect {
+          match(doc_1, parse('red<div></div>'))
+          match(doc_1, parse('<div></div>'))
+          match(doc_1, parse('<div></div>red'))
+        }.to_not raise_error
       end
 
       it 'can simulate case statement' do
@@ -444,9 +467,9 @@ describe ReverseXSLT do
           if_token('var'){[text_token('blue')]}
         ]
 
-        expect(match(doc_1, [text_token('color: red')])).to eq({'var' => 'red'})
-        expect(match(doc_1, [text_token('color: green')])).to eq({'var' => 'green'})
-        expect(match(doc_1, [text_token('color: blue')])).to eq({'var' => 'blue'})
+        expect(match(doc_1, [text_token('color: red')])).to eq({'var' => {:_ => 'red'}})
+        expect(match(doc_1, [text_token('color: green')])).to eq({'var' => {:_ => 'green'}})
+        expect(match(doc_1, [text_token('color: blue')])).to eq({'var' => {:_ => 'blue'}})
         expect(match(doc_1, [text_token('color: yellow')])).to be_nil
       end
 
