@@ -245,8 +245,8 @@ module ReverseXSLT
       if res_1.nil?
         return nil if res_2.nil?
 
-        token.matching = extract_matching(token.children)
-        token.matching[:_] = extract_text(token.children)
+        #token.matching = extract_matching(token.children)
+        token.matching = extract_text(token.children)
 
         return [token] + clone
       else
@@ -261,9 +261,6 @@ module ReverseXSLT
 
       return text_matching(text_prefix, (text.first && text.first.value) || '')
     else
-      puts "v"*50
-      puts token.inspect
-      puts "^"*50
       raise ArgumentError('Aaaaaaaa!!!!')
     end
   end
@@ -274,10 +271,16 @@ module ReverseXSLT
       case token
       when Token::TagToken
         res.merge! token.matching
-      when Token::IfToken, Token::ForEachToken, Token::ValueOfToken
+      when Token::ForEachToken, Token::ValueOfToken
         unless token.matching.nil?
           raise Error::DuplicatedTokenName if res[token.value]
           res[token.value] = token.matching
+        end
+      when Token::IfToken
+        unless token.matching.nil?
+          raise Error::DuplicatedTokenName if res[token.value]
+          res[token.value] = token.matching
+          res.merge! extract_matching(token.children) #TODO: check for duplicates
         end
       end
     end
@@ -289,15 +292,13 @@ module ReverseXSLT
       case token
       when Token::TextToken
         token.value
-      when Token::IfToken, Token::ForEachToken
-        (token.matching && token.matching[:_])
-      when Token::ValueOfToken
+      when Token::IfToken, Token::ForEachToken, Token::ValueOfToken
         token.matching
       when Token::TagToken
         extract_text(token.children)
       else
         nil
       end
-    end.compact.join(' ').gsub(/\s+/, ' ')
+    end.compact.join(' ').gsub(/\s+/, ' ').strip
   end
 end

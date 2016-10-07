@@ -433,10 +433,8 @@ describe ReverseXSLT do
           if_token('var'){[value_of_token('count'), text_token('users')]}, text_token('here')
         ]
         exp = {
-          'var' => {
-            'count' => '42',
-            :_ => '42 users'
-          }
+          'var' => '42 users',
+          'count' => '42'
         }
         expect(match(doc_1, [text_token('count: 42   users here')])).to eq(exp)
       end
@@ -467,9 +465,9 @@ describe ReverseXSLT do
           if_token('var'){[text_token('blue')]}
         ]
 
-        expect(match(doc_1, [text_token('color: red')])).to eq({'var' => {:_ => 'red'}})
-        expect(match(doc_1, [text_token('color: green')])).to eq({'var' => {:_ => 'green'}})
-        expect(match(doc_1, [text_token('color: blue')])).to eq({'var' => {:_ => 'blue'}})
+        expect(match(doc_1, [text_token('color: red')])).to eq({'var' => 'red'})
+        expect(match(doc_1, [text_token('color: green')])).to eq({'var' => 'green'})
+        expect(match(doc_1, [text_token('color: blue')])).to eq({'var' => 'blue'})
         expect(match(doc_1, [text_token('color: yellow')])).to be_nil
       end
 
@@ -526,7 +524,17 @@ describe ReverseXSLT do
         )
 
         res = match(parse(xml_1), parse(xml_2))
-        expect(res).to_not be_nil
+
+        expect(res).to eq({
+          'zamieszczanie_obowiazkowe' => 'obowiązkowe',
+          'rodzaj_zamowienia' => 'Roboty budowlane',
+          'pozycja' => '319424',
+          'biuletyn' => '2016',
+          'data_publikacji' => '2016-10-07',
+          'zamawiajacy_miejscowosc' =>'Kraków',
+          'nazwa_nadana_zamowieniu' => 'Wykonanie robót budowlanych w zakresie bieżącej konserwacji pomieszczeń budynku na os. Krakowiaków 46 w Krakowie',
+          "pozycja_data_publikacji_biuletyn" => "Ogłoszenie nr 319424 - 2016 z dnia 2016-10-07 r."
+        })
       end
     end
   end
