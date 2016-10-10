@@ -1,4 +1,4 @@
-# ReverseXSLT [![Coverage Status](https://coveralls.io/repos/github/MNSLab/reverse_xslt/badge.svg?branch=master)](https://coveralls.io/github/MNSLab/reverse_xslt?branch=master) [![Build Status](https://travis-ci.org/MNSLab/reverse_xslt.svg?branch=master)](https://travis-ci.org/MNSLab/reverse_xslt)
+# ReverseXSLT [![Coverage Status](https://coveralls.io/repos/github/MNSLab/reverse_xslt/badge.svg?branch=master)](https://coveralls.io/github/MNSLab/reverse_xslt?branch=master) [![Build St atus](https://travis-ci.org/MNSLab/reverse_xslt.svg?branch=master)](https://travis-ci.org/MNSLab/reverse_xslt) [![Code Climate](https://codeclimate.com/github/MNSLab/reverse_xslt/badges/gpa.svg)](https://codeclimate.com/github/MNSLab/reverse_xslt)
 
 Welcome to your new gem! In this directory, you'll find the files you need to be able to package up your Ruby library into a gem. Put your Ruby code in the file `lib/reverse_xslt`. To experiment with that code, run `bin/console` for an interactive prompt.
 
