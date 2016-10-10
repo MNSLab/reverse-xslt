@@ -1,6 +1,5 @@
 require 'nokogiri'
 class ReverseXSLT::Parser
-  def self.parse()
-
+  def self.parse
   end
 end

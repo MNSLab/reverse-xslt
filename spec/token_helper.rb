@@ -7,30 +7,29 @@ module TokenHelper
     ReverseXSLT::Token::TextToken.new(text)
   end
 
-  def if_token(name, &block)
+  def if_token(name)
     res = ReverseXSLT::Token::IfToken.new(name)
     res.children = yield if block_given?
     res
   end
 
-  def for_each_token(name, &block)
+  def for_each_token(name)
     res = ReverseXSLT::Token::ForEachToken.new(name)
     res.children = yield if block_given?
     res
   end
 
-  def tag_token(name, &block)
+  def tag_token(name)
     res = ReverseXSLT::Token::TagToken.new(name)
     res.children = yield if block_given?
     res
   end
 
   def parse(doc)
-    ReverseXSLT::parse(doc)
+    ReverseXSLT.parse(doc)
   end
 
   def match(x, y, r = {})
-    ReverseXSLT::match(x, y, r)
+    ReverseXSLT.match(x, y, r)
   end
-
 end

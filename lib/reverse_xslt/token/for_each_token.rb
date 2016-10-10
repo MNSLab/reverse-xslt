@@ -4,7 +4,7 @@ module ReverseXSLT
       def initialize(tag = '')
         name = extract_element_attribute(tag, 'select')
 
-        super(:for_each, Token::tokenize(name))
+        super(:for_each, Token.tokenize(name))
       end
     end
   end

@@ -1,11 +1,10 @@
-require "reverse_xslt/version"
+require 'reverse_xslt/version'
 require 'reverse_xslt/token/token'
 require 'reverse_xslt/error'
 
 require 'nokogiri'
 
 module ReverseXSLT
-
   # Parse XML/Nokogiri::XML into tokens hierarchy
   # @param doc [XML String / Nokogiri::XML] asd
   #
@@ -29,14 +28,13 @@ module ReverseXSLT
   #
   # @return [Hash] when xslt match xml, hash with all matched value-of tokens
   # @return [nil] when xslt doesn't match xml
-  def self.match(xslt, xml, regexp = {})
-    raise Error::IllegalMatchUse unless (xslt.is_a? Array) and (xml.is_a? Array)
+  def self.match(xslt, xml, _regexp = {})
+    raise Error::IllegalMatchUse unless (xslt.is_a? Array) && (xml.is_a? Array)
 
     matching = match_recursive([], xslt, [], xml)
     return nil if matching.nil?
     # binding.pry
     extract_matching(matching)
-
   end
 
   # Check if xml match structure of xslt (could be generated from)
@@ -46,13 +44,10 @@ module ReverseXSLT
   #
   # @return [Boolean] +xml+ match +xslt+
   def self.match?(xslt, xml)
-    begin
-      match(xslt, xml).is_a? Hash
-    rescue
-      false
-    end
+    match(xslt, xml).is_a? Hash
+  rescue
+    false
   end
-
 
   private
 
@@ -76,7 +71,7 @@ module ReverseXSLT
           Token::TagToken.new(node)
         end
 
-      res.children = node.children.map{|x| parse_node(x) }.compact
+      res.children = node.children.map { |x| parse_node(x) }.compact
       res
     when Nokogiri::XML::Comment
       nil
@@ -84,7 +79,6 @@ module ReverseXSLT
       raise ArgumentError.new("Unknown node class: #{node.class}")
     end
   end
-
 
   # Match series of TextToken and ValueOfToken to TextToken
   #
@@ -102,7 +96,7 @@ module ReverseXSLT
   def self.text_matching(tokens, text, prefix_match = false)
     # check for consecuting value-of tokens
     tokens.each_with_index do |x, i|
-      raise Error::ConsecutiveValueOfToken if (i > 0) and (tokens[i-1].class == x.class)
+      raise Error::ConsecutiveValueOfToken if (i > 0) && (tokens[i - 1].class == x.class)
     end
 
     # convert tokens to regexp
@@ -123,15 +117,15 @@ module ReverseXSLT
     # reduce series of whitespace
     text = text.gsub(/\s+/, ' ').strip
 
-    re = '\A'+re+(prefix_match ? '' : '\z')
+    re = '\A' + re + (prefix_match ? '' : '\z')
 
     matching = text.match(Regexp.new(re))
 
     return nil if matching.nil?
 
-    #res = Hash[res.names.map{|name| [name, res[name].strip]}]
+    # res = Hash[res.names.map{|name| [name, res[name].strip]}]
 
-    #return res
+    # return res
     tokens.each do |token|
       if token.is_a? Token::ValueOfToken
         token.matching = matching[token.value].strip
@@ -144,11 +138,11 @@ module ReverseXSLT
   # @return [[Array<Token>, Array<Token>]] pair of array of text tokens and rest of tokens
   def self.text_prefix(tokens)
     index = 0
-    while (index < tokens.length) and ((tokens[index].is_a? Token::TextToken) or (tokens[index].is_a? Token::ValueOfToken))
-      index+=1
+    while (index < tokens.length) && ((tokens[index].is_a? Token::TextToken) || (tokens[index].is_a? Token::ValueOfToken))
+      index += 1
     end
 
-    return [tokens[0, index], tokens[index, tokens.length-index]]
+    [tokens[0, index], tokens[index, tokens.length - index]]
   end
 
   # Merge consecutive TextTokens in token array
@@ -204,7 +198,7 @@ module ReverseXSLT
     text = merge_text_tokens(text + text_prefix_2)
 
     raise Error::MalformedTree if text.length > 1
-    raise Error::DisallowedMatch unless text.first.is_a? Token::TextToken or text.first.nil?
+    raise Error::DisallowedMatch unless text.first.is_a?(Token::TextToken) || text.first.nil?
 
     # read first non text token
     token = tokens_xslt.shift
@@ -292,8 +286,6 @@ module ReverseXSLT
         token.matching
       when Token::TagToken
         extract_text(token.children)
-      else
-        nil
       end
     end.compact.join(' ').gsub(/\s+/, ' ').strip
   end

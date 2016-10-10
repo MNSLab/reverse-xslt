@@ -5,7 +5,7 @@ module ReverseXSLT
       attr_accessor :children, :matching
 
       def ==(other)
-        self.class == other.class && self.type == other.type && self.value == other.value && self.children == other.children
+        self.class == other.class && type == other.type && value == other.value && children == other.children
       end
 
       def initialize(type, value)
@@ -15,16 +15,16 @@ module ReverseXSLT
         @matching = nil
       end
 
-      def clone()
-        res = self.class.new()
-        res.instance_variable_set('@type', self.type)
-        res.instance_variable_set('@value', self.value)
-        res.children = self.children.map{|child| child.clone}
+      def clone
+        res = self.class.new
+        res.instance_variable_set('@type', type)
+        res.instance_variable_set('@value', value)
+        res.children = children.map(&:clone)
         res
       end
 
       def self.tokenize(text)
-        text.gsub(/[a-z]+:/,'').gsub(/(?<=[^_a-z])(not|or|and)(?=[^_a-z])/,'_').gsub(/(?<=[^_a-z])(not|or|and)\z/,'_').gsub(/^(not|or|and)(?=[^_a-z])/,'_').gsub(/[^_a-z]/, '_').gsub(/[_]+/, '_').gsub(/\A_+/, '').gsub(/_+\z/, '')
+        text.gsub(/[a-z]+:/, '').gsub(/(?<=[^_a-z])(not|or|and)(?=[^_a-z])/, '_').gsub(/(?<=[^_a-z])(not|or|and)\z/, '_').gsub(/^(not|or|and)(?=[^_a-z])/, '_').gsub(/[^_a-z]/, '_').gsub(/[_]+/, '_').gsub(/\A_+/, '').gsub(/_+\z/, '')
       end
 
       private

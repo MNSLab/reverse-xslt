@@ -9,7 +9,7 @@ module ReverseXSLT
       def initialize(tag = '')
         name = extract_element_attribute(tag, 'test')
 
-        super(:if, Token::tokenize(name))
+        super(:if, Token.tokenize(name))
       end
     end
   end

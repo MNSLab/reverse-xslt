@@ -1,7 +1,6 @@
 require 'spec_helper'
 
 describe ReverseXSLT::Token do
-
   describe '.tokenize' do
     it 'removes [^_a-z] characters' do
       expect(ReverseXSLT::Token::Token.tokenize('qwertyuiopasdfghjklzxcvbn_m1234567890!@#$%^&*()+-=<>,.?/;:[{}]')).to eq('qwertyuiopasdfghjklzxcvbn_m')
@@ -47,16 +46,14 @@ describe ReverseXSLT::Token do
         "//a:zalaczniki/a:zalacznik/a:zalacznik_czesc_nr != '' or //a:zalaczniki/a:zalacznik/a:zalacznik_nazwa != '' or //a:zalaczniki/a:zalacznik/a:zalacznik_opis != '' or //a:zalaczniki/a:zalacznik/a:zalacznik_cpv_glowny_przedmiot/a:cpv/a:value != '' or //a:zalaczniki/a:zalacznik/a:zalacznik_cpv_dodatkowe_przedmioty/a:cpv/a:value != '' or //a:zalaczniki/a:zalacznik/a:zalacznik_okres_w_miesiacach != '' or //a:zalaczniki/a:zalacznik/a:zalacznik_okres_w_dniach != '' or //a:zalaczniki/a:zalacznik/a:zalacznik_data_rozpoczecia != '' or //a:zalaczniki/a:zalacznik/a:zalacznik_data_zakonczenia != '' or //a:zalaczniki/a:zalacznik/a:zalacznik_kryteria_oceny_ofert != ''" => 'zalaczniki_zalacznik_zalacznik_czesc_nr_zalaczniki_zalacznik_zalacznik_nazwa_zalaczniki_zalacznik_zalacznik_opis_zalaczniki_zalacznik_zalacznik_cpv_glowny_przedmiot_cpv_value_zalaczniki_zalacznik_zalacznik_cpv_dodatkowe_przedmioty_cpv_value_zalaczniki_zalacznik_zalacznik_okres_w_miesiacach_zalaczniki_zalacznik_zalacznik_okres_w_dniach_zalaczniki_zalacznik_zalacznik_data_rozpoczecia_zalaczniki_zalacznik_zalacznik_data_zakonczenia_zalaczniki_zalacznik_zalacznik_kryteria_oceny_ofert'
       }
 
-      examples.each do |k,v|
+      examples.each do |k, v|
         expect(ReverseXSLT::Token::Token.tokenize(k)).to eq(v)
       end
     end
-
-
   end
 
   describe 'token creation' do
-    let(:xml) { %q[<xml xmlns:xsl="http://www.w3.org/1999/XSL/Transform">%s</xml>] }
+    let(:xml) { '<xml xmlns:xsl="http://www.w3.org/1999/XSL/Transform">%s</xml>' }
 
     it 'allows create IfToken from Nokogiri::XML::Element or string' do
       doc = Nokogiri::XML(xml % '<xsl:if test="a:var"></xsl:if>')
