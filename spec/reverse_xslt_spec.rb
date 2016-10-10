@@ -287,6 +287,7 @@ describe ReverseXSLT do
       end
 
       it 'allow value-of+value-of matching when additional regexps are defined' do
+        pending
         doc_1 = [value_of_token('count'), value_of_token('noun')]
         doc_2 = [text_token('127 bits')]
 

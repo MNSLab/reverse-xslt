@@ -29,8 +29,8 @@ module TokenHelper
     ReverseXSLT::parse(doc)
   end
 
-  def match(x, y)
-    ReverseXSLT::match(x, y)
+  def match(x, y, r = {})
+    ReverseXSLT::match(x, y, r)
   end
 
 end
