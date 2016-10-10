@@ -160,7 +160,7 @@ describe ReverseXSLT do
         ReverseXSLT::match([tag], [tag])
       }.not_to raise_error
     end
-    context 'using ValueOfToken and TextToken' do
+    context 'using value-of-token and text-token' do
       it 'trims whitespaces from text and matching' do
         expect(match([value_of_token('var')], [text_token('     a      b   e     ')])).to eq({'var' => 'a b e'})
 
@@ -286,7 +286,19 @@ describe ReverseXSLT do
         expect(res['var']).to eq('')
       end
 
-      it 'allow value-of+value-of matching when additional regexp is defined'
+      it 'allow value-of+value-of matching when additional regexps are defined' do
+        doc_1 = [value_of_token('count'), value_of_token('noun')]
+        doc_2 = [text_token('127 bits')]
+
+        expect {
+          match(doc_1, doc_2)
+        }.to raise_error
+
+        expect {
+          res = match(doc_1, doc_2, {count: /[0-9]+/})
+          expect(res).to eq({'count' => '127', 'noun' => 'bits'})
+        }.to_not raise_error
+      end
 
       it 'throws error on duplicated value-of token name' do
         doc_1 = [value_of_token('var'), text_token(":"), value_of_token('var')]
@@ -405,7 +417,7 @@ describe ReverseXSLT do
 
     end
 
-    context 'using if token' do
+    context 'using if-token' do
       it 'allows to match or not given content' do
         doc_1 = [if_token('var'){[tag_token('div')]}]
         expect(match([], [tag_token('span')])).to be_nil
@@ -535,6 +547,53 @@ describe ReverseXSLT do
           'nazwa_nadana_zamowieniu' => 'Wykonanie robót budowlanych w zakresie bieżącej konserwacji pomieszczeń budynku na os. Krakowiaków 46 w Krakowie',
           "pozycja_data_publikacji_biuletyn" => "Ogłoszenie nr 319424 - 2016 z dnia 2016-10-07 r."
         })
+      end
+    end
+
+    context 'using for-each-token' do
+      it 'match multiple occurence of text-token' do
+        pending
+
+        doc_1 = [for_each_token('worlds'){ [text_token('world')]}]
+        doc_2 = [text_token('  world  world  world world  world  world  ')]
+
+        res = match(doc_1, doc_2)
+        expect(res).to_not be_nil
+
+        expect(res['var']).to be_a(Array)
+        expect(res['var'].length).to eq(6)
+        (0..5).each do |i|
+          expect(res['var'][i]).to eq({})
+        end
+      end
+
+      it 'match multipe occurence of text and if tokens' do
+        pending
+
+        doc_1 = [for_each_token('var'){[
+            value_of_token('number'),
+            if_token('comma'){[text_token(',')]}
+          ]}]
+
+        doc_2 = [text_token('123, 124   , 125,1000')]
+
+        expect {
+          match(doc_1, doc_2)
+        }.to raise_error
+
+        expect {
+          res = match(doc_1, doc_2, {'var' => /[0-9]+/})
+        }.to_not raise_error
+
+        expect(res).to be_a(Hash)
+
+
+        expect(res['var']).to be_a(Array)
+
+        expect(res['var'][0]['number']).to eq('123')
+        expect(res['var'][1]['number']).to eq('124')
+        expect(res['var'][2]['number']).to eq('125')
+        expect(res['var'][3]['number']).to eq('1000')
       end
     end
   end
