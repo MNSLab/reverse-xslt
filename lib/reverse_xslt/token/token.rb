@@ -1,11 +1,22 @@
 module ReverseXSLT
   module Token
+    # Wrapper for different XSLT/XML nodes
     class Token
-      attr_reader :type, :value
-      attr_accessor :children, :matching
+      # @return [Symbol] type of token
+      attr_reader :type
+
+      # @return [String] their meaning depends on token type
+      attr_reader :value
+
+      # @return [Array<Token>] list of token children in parse tree
+      attr_accessor :children
+
+      # @return [Hash, String, Array] object contains matching data after .match
+      attr_accessor :matching
 
       def ==(other)
-        self.class == other.class && type == other.type && value == other.value && children == other.children
+        self.class == other.class && type == other.type &&
+          value == other.value && children == other.children
       end
 
       def initialize(type, value)
@@ -24,7 +35,19 @@ module ReverseXSLT
       end
 
       def self.tokenize(text)
-        text.gsub(/[a-z]+:/, '').gsub(/(?<=[^_a-z])(not|or|and)(?=[^_a-z])/, '_').gsub(/(?<=[^_a-z])(not|or|and)\z/, '_').gsub(/^(not|or|and)(?=[^_a-z])/, '_').gsub(/[^_a-z]/, '_').gsub(/[_]+/, '_').gsub(/\A_+/, '').gsub(/_+\z/, '')
+        text
+          .gsub(/[a-z]+:/, '')
+          .gsub(/(?<=[^_a-z])(not|or|and)(?=[^_a-z])/, '_')
+          .gsub(/(?<=[^_a-z])(not|or|and)\z/, '_')
+          .gsub(/^(not|or|and)(?=[^_a-z])/, '_')
+          .gsub(/[^_a-z]/, '_')
+          .gsub(/[_]+/, '_')
+          .gsub(/\A_+/, '')
+          .gsub(/_+\z/, '')
+      end
+
+      def textual_token?
+        (is_a? TextToken) || (is_a? ValueOfToken)
       end
 
       private

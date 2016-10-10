@@ -4,6 +4,7 @@ require 'reverse_xslt/error'
 
 require 'nokogiri'
 
+# Namespace module for xslt matching functions
 module ReverseXSLT
   # Parse XML/Nokogiri::XML into tokens hierarchy
   # @param doc [XML String / Nokogiri::XML] asd
@@ -24,7 +25,8 @@ module ReverseXSLT
   #
   # @param xslt [Array<Token>] XSLT document (contains any token)
   # @param xml [Array<Token>] XML document (contains only Text and Tag tokens)
-  # @param regexp [Hash<String, Regexp>] additional regexp for value-of token (replace default match all)
+  # @param regexp [Hash<String, Regexp>] additional regexp for value-of token
+  #   (replace default match all)
   #
   # @return [Hash] when xslt match xml, hash with all matched value-of tokens
   # @return [nil] when xslt doesn't match xml
@@ -49,7 +51,7 @@ module ReverseXSLT
     false
   end
 
-  private
+  private_class_method
 
   # Parse single Nokogiri::XML::Node into single Token
   def self.parse_node(node)
@@ -76,7 +78,7 @@ module ReverseXSLT
     when Nokogiri::XML::Comment
       nil
     else
-      raise ArgumentError.new("Unknown node class: #{node.class}")
+      raise ArgumentError, "Unknown node class: #{node.class}"
     end
   end
 
@@ -96,7 +98,9 @@ module ReverseXSLT
   def self.text_matching(tokens, text, prefix_match = false)
     # check for consecuting value-of tokens
     tokens.each_with_index do |x, i|
-      raise Error::ConsecutiveValueOfToken if (i > 0) && (tokens[i - 1].class == x.class)
+      if (i > 0) && (tokens[i - 1].class == x.class)
+        raise Error::ConsecutiveValueOfToken
+      end
     end
 
     # convert tokens to regexp
@@ -135,19 +139,20 @@ module ReverseXSLT
 
   # extract text (TextToken and ValueOfToken) prefix.
   # @param tokens [Array<Token>] array of tokens, this array isn't modified
-  # @return [[Array<Token>, Array<Token>]] pair of array of text tokens and rest of tokens
+  # @return [[Array<Token>, Array<Token>]] pair of array of text tokens and
+  #   rest of tokens
   def self.text_prefix(tokens)
     index = 0
-    while (index < tokens.length) && ((tokens[index].is_a? Token::TextToken) || (tokens[index].is_a? Token::ValueOfToken))
-      index += 1
-    end
+
+    index += 1 while (index < tokens.length) && tokens[index].textual_token?
 
     [tokens[0, index], tokens[index, tokens.length - index]]
   end
 
   # Merge consecutive TextTokens in token array
   # @param tokens[Array<Token>] array of tokens
-  # @return [Array<Token>] array of tokens where consecutive TextTokens are merged into single TextToken
+  # @return [Array<Token>] array of tokens where consecutive TextTokens
+  #   are merged into single TextToken
   def self.merge_text_tokens(tokens)
     res = []
     queue = []
@@ -156,7 +161,7 @@ module ReverseXSLT
         queue << token.value
       else
         unless queue.empty?
-          res << Token::TextToken.new(queue.join ' ')
+          res << Token::TextToken.new(queue.join(' '))
           queue.clear
         end
         res << token
@@ -164,7 +169,7 @@ module ReverseXSLT
     end
 
     unless queue.empty?
-      res << Token::TextToken.new(queue.join ' ')
+      res << Token::TextToken.new(queue.join(' '))
       queue.clear
     end
 
@@ -183,22 +188,28 @@ module ReverseXSLT
 
   #
   # XSLT document tree:
-  # @param text_prefix [Array<TextToken/ValueOfToken>] text prefix - array of already red text/value-of tokens awaiting for matching
+  # @param text_prefix [Array<TextToken/ValueOfToken>] text prefix -
+  #   array of already red text/value-of tokens awaiting for matching
   # @param tokens_xslt [Array<Token>] res of tokens
+  #
   # XML document tree:
   # @param text [TextToken/nil] text prefix of xml document
-  # @param tokens_xml [Array<Token>] rest of xml document starting with tag-token
+  # @param tokens_xml [Array<Token>] rest of xml document, starts with tag-token
   def self.match_recursive(text_prefix, tokens_xslt, text, tokens_xml)
     # extract text tokens from xslt
     text_prefix_2, tokens_xslt = text_prefix(tokens_xslt)
-    text_prefix = merge_text_tokens(text_prefix + text_prefix_2) # update text prefix
+
+    # update text prefix
+    text_prefix = merge_text_tokens(text_prefix + text_prefix_2)
 
     # extract text tokens from xml
     text_prefix_2, tokens_xml = text_prefix(tokens_xml)
     text = merge_text_tokens(text + text_prefix_2)
 
     raise Error::MalformedTree if text.length > 1
-    raise Error::DisallowedMatch unless text.first.is_a?(Token::TextToken) || text.first.nil?
+    unless text.first.is_a?(Token::TextToken) || text.first.nil?
+      raise Error::DisallowedMatch
+    end
 
     # read first non text token
     token = tokens_xslt.shift
@@ -208,11 +219,17 @@ module ReverseXSLT
     when Token::TagToken
       other = tokens_xml.shift
 
-      return nil unless other.class == Token::TagToken # there is no tag in xml document
+      # XML documents ends prematurely
+      return nil unless other.class == Token::TagToken
+
       return nil unless other.value == token.value # different tag name
 
       # match text prefixes
-      text_matching = text_matching(text_prefix, (text.first && text.first.value) || '')
+      text_matching = text_matching(
+        text_prefix,
+        (text.first && text.first.value) || ''
+      )
+
       return nil if text_matching.nil?
 
       # match tags content
@@ -227,20 +244,25 @@ module ReverseXSLT
       return text_matching + [token] + recursive_matching
     when Token::IfToken
       # matching without IF
-      res_1 = match_recursive(text_prefix, tokens_xslt, text, tokens_xml)
+      no_if_branch = match_recursive(text_prefix, tokens_xslt, text, tokens_xml)
 
       # matching with IF
       clone = tokens_xslt.map(&:clone)
-      res_2 = match_recursive(text_prefix, token.children + clone, text, tokens_xml)
+      if_branch = match_recursive(
+        text_prefix,
+        token.children + clone,
+        text,
+        tokens_xml
+      )
 
-      if res_1.nil?
-        return nil if res_2.nil?
+      if no_if_branch.nil?
+        return nil if if_branch.nil?
 
         token.matching = extract_text(token.children)
 
         return [token] + clone
       else
-        raise Error::AmbiguousMatch unless res_2.nil?
+        raise Error::AmbiguousMatch unless if_branch.nil?
         token.matching = nil
         return [token] + tokens_xslt
       end

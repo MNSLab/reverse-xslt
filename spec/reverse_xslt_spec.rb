@@ -28,7 +28,7 @@ describe ReverseXSLT do
     end
 
     it 'parses text node' do
-      doc = Nokogiri::XML('<div>%s</div>' % text_node)
+      doc = Nokogiri::XML("<div>#{text_node}</div>")
 
       ReverseXSLT.parse_node(doc.root).children.first.tap do |result|
         expect(result).to be_a(ReverseXSLT::Token::TextToken)
@@ -83,7 +83,7 @@ describe ReverseXSLT do
       expected_classes = [ReverseXSLT::Token::ForEachToken, ReverseXSLT::Token::IfToken,
                           ReverseXSLT::Token::ValueOfToken, ReverseXSLT::Token::TagToken, ReverseXSLT::Token::TextToken]
 
-      doc = Nokogiri::XML(xml % ('<div>%s</div>' % content))
+      doc = Nokogiri::XML(xml % "<div>#{content}</div>")
 
       res = ReverseXSLT.parse_node(doc.root.children.first).children
 
@@ -580,16 +580,16 @@ describe ReverseXSLT do
 
         expect do
           res = match(doc_1, doc_2, 'var' => /[0-9]+/)
+
+          expect(res).to be_a(Hash)
+
+          expect(res['var']).to be_a(Array)
+
+          expect(res['var'][0]['number']).to eq('123')
+          expect(res['var'][1]['number']).to eq('124')
+          expect(res['var'][2]['number']).to eq('125')
+          expect(res['var'][3]['number']).to eq('1000')
         end.to_not raise_error
-
-        expect(res).to be_a(Hash)
-
-        expect(res['var']).to be_a(Array)
-
-        expect(res['var'][0]['number']).to eq('123')
-        expect(res['var'][1]['number']).to eq('124')
-        expect(res['var'][2]['number']).to eq('125')
-        expect(res['var'][3]['number']).to eq('1000')
       end
     end
   end
