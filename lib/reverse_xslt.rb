@@ -23,12 +23,13 @@ module ReverseXSLT
 
   # Match XSLT document to XML document, return matched value-of tokens.
   #
-  # @param xslt [Array<Token>]
-  # @param xml [Array<Token>]
+  # @param xslt [Array<Token>] XSLT document (contains any token)
+  # @param xml [Array<Token>] XML document (contains only Text and Tag tokens)
+  # @param regexp [Hash<String, Regexp>] additional regexp for value-of token (replace default match all)
   #
   # @return [Hash] when xslt match xml, hash with all matched value-of tokens
   # @return [nil] when xslt doesn't match xml
-  def self.match(xslt, xml)
+  def self.match(xslt, xml, regexp = {})
     raise Error::IllegalMatchUse unless (xslt.is_a? Array) and (xml.is_a? Array)
 
     matching = match_recursive([], xslt, [], xml)
@@ -62,20 +63,18 @@ module ReverseXSLT
       Token::TextToken.new(node)
     when Nokogiri::XML::Element
       name = (node.namespace ? "#{node.namespace.prefix}:" : '') + node.name
-      res = case name
-      when 'xsl:if'
-        Token::IfToken.new(node)
-      when 'xsl:value-of'
-        Token::ValueOfToken.new(node)
-      when 'xsl:for-each'
-        Token::ForEachToken.new(node)
-      else
-        if node.namespace.nil?
-          Token::TagToken.new(node)
+
+      res =
+        case name
+        when 'xsl:if'
+          Token::IfToken.new(node)
+        when 'xsl:value-of'
+          Token::ValueOfToken.new(node)
+        when 'xsl:for-each'
+          Token::ForEachToken.new(node)
         else
-          raise ArgumentError.new("Unknown node namespace: #{node.namespace}")
+          Token::TagToken.new(node)
         end
-      end
 
       res.children = node.children.map{|x| parse_node(x) }.compact
       res
@@ -86,14 +85,12 @@ module ReverseXSLT
     end
   end
 
-  private
 
   # Match series of TextToken and ValueOfToken to TextToken
   #
   # @param tokens [Array<Token>] array of TextToken and ValueOfToken
   # @param text [String] text token
   # @param prefix_match [Boolean] it is required to only match text prefix
-  # @param group_matchings [Hash<String, [Token, Token]>] define boundaries
   #
   # @return [Hash] hash of matched variables
   #   Hash[if-token] = {_: 'text of whole matched tree', other matched elements}
@@ -102,7 +99,7 @@ module ReverseXSLT
   #   tag-token and text-token don't have match entry
   # @return [nil] when tokens doesn't match text
   #
-  def self.text_matching(tokens, text, prefix_match = false, group_matchings = {})
+  def self.text_matching(tokens, text, prefix_match = false)
     # check for consecuting value-of tokens
     tokens.each_with_index do |x, i|
       raise Error::ConsecutiveValueOfToken if (i > 0) and (tokens[i-1].class == x.class)
@@ -209,9 +206,9 @@ module ReverseXSLT
     raise Error::MalformedTree if text.length > 1
     raise Error::DisallowedMatch unless text.first.is_a? Token::TextToken or text.first.nil?
 
-
     # read first non text token
     token = tokens_xslt.shift
+
     # TODO: we should check for empty array instead of nil token
     case token
     when Token::TagToken
@@ -245,7 +242,6 @@ module ReverseXSLT
       if res_1.nil?
         return nil if res_2.nil?
 
-        #token.matching = extract_matching(token.children)
         token.matching = extract_text(token.children)
 
         return [token] + clone
@@ -255,7 +251,7 @@ module ReverseXSLT
         return [token] + tokens_xslt
       end
     when Token::ForEachToken
-
+      # TODO: implement for-each-token matching
     when nil # end of XSLT document
       return nil unless tokens_xml.first.class == token.class
 
@@ -270,7 +266,7 @@ module ReverseXSLT
     tokens.each do |token|
       case token
       when Token::TagToken
-        res.merge! token.matching
+        merge_matchings!(res, token.matching)
       when Token::ForEachToken, Token::ValueOfToken
         unless token.matching.nil?
           raise Error::DuplicatedTokenName if res[token.value]
@@ -280,7 +276,7 @@ module ReverseXSLT
         unless token.matching.nil?
           raise Error::DuplicatedTokenName if res[token.value]
           res[token.value] = token.matching
-          res.merge! extract_matching(token.children) #TODO: check for duplicates
+          merge_matchings!(res, extract_matching(token.children))
         end
       end
     end
