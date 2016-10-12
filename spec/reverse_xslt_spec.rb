@@ -286,16 +286,15 @@ describe ReverseXSLT do
       end
 
       it 'allow value-of+value-of matching when additional regexps are defined' do
-        pending
         doc_1 = [value_of_token('count'), value_of_token('noun')]
         doc_2 = [text_token('127 bits')]
 
         expect do
           match(doc_1, doc_2)
-        end.to raise_error
+        end.to raise_error(ReverseXSLT::Error::ConsecutiveValueOfToken)
 
         expect do
-          res = match(doc_1, doc_2, count: /[0-9]+/)
+          res = match(doc_1, doc_2, {'count' => /[0-9]+/})
           expect(res).to eq('count' => '127', 'noun' => 'bits')
         end.to_not raise_error
       end
@@ -547,24 +546,20 @@ describe ReverseXSLT do
 
     context 'using for-each-token' do
       it 'match multiple occurence of text-token' do
-        pending
-
         doc_1 = [for_each_token('worlds') { [text_token('world')] }]
         doc_2 = [text_token('  world  world  world world  world  world  ')]
 
         res = match(doc_1, doc_2)
         expect(res).to_not be_nil
 
-        expect(res['var']).to be_a(Array)
-        expect(res['var'].length).to eq(6)
+        expect(res['worlds']).to be_a(Array)
+        expect(res['worlds'].length).to eq(6)
         (0..5).each do |i|
-          expect(res['var'][i]).to eq({})
+          expect(res['worlds'][i]).to eq({})
         end
       end
 
       it 'match multipe occurence of text and if tokens' do
-        pending
-
         doc_1 = [for_each_token('var') do
           [
             value_of_token('number'),
@@ -579,7 +574,7 @@ describe ReverseXSLT do
         end.to raise_error
 
         expect do
-          res = match(doc_1, doc_2, 'var' => /[0-9]+/)
+          res = match(doc_1, doc_2, {'number' => /[0-9]+/})
 
           expect(res).to be_a(Hash)
 
