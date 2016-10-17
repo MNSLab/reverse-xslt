@@ -160,6 +160,19 @@ describe ReverseXSLT do
       end.not_to raise_error
     end
     context 'using value-of-token and text-token' do
+      it 'match concatenated text-token and value-of-token' do
+        doc_1 = [text_token('A'), value_of_token('number')]
+        doc_2 = [text_token('A10')]
+
+        expect(match(doc_1, doc_2)).to eq('number' => '10')
+      end
+      it 'doesn\'t match concatenated value-of tokens' do
+        doc_1 = [value_of_token('char'), value_of_token('number')]
+        doc_2 = [text_token('A10')]
+
+        expect(match(doc_1, doc_2, 'number' => /[0-9]+/, 'char' => /[a-z]+/)).to eq(nil)
+      end
+
       it 'trims whitespaces from text and matching' do
         expect(match([value_of_token('var')], [text_token('     a      b   e     ')])).to eq('var' => 'a b e')
 
@@ -294,7 +307,7 @@ describe ReverseXSLT do
         end.to raise_error(ReverseXSLT::Error::ConsecutiveValueOfToken)
 
         expect do
-          res = match(doc_1, doc_2, {'count' => /[0-9]+/})
+          res = match(doc_1, doc_2, 'count' => /[0-9]+/)
           expect(res).to eq('count' => '127', 'noun' => 'bits')
         end.to_not raise_error
       end
@@ -545,6 +558,13 @@ describe ReverseXSLT do
     end
 
     context 'using for-each-token' do
+      it 'match zero occurence of for-each-token' do
+        doc_1 = [for_each_token('numbers') { [value_of_token('number')] }]
+        doc_2 = [text_token('')]
+
+        expect(match(doc_1, doc_2)).to eq('numbers' => [])
+      end
+
       it 'match multiple occurence of text-token' do
         doc_1 = [for_each_token('worlds') { [text_token('world')] }]
         doc_2 = [text_token('  world  world  world world  world  world  ')]
@@ -559,7 +579,39 @@ describe ReverseXSLT do
         end
       end
 
-      it 'match multipe occurence of text and if tokens' do
+      it 'should match as few occurence of for-each-token as possible' do
+        doc_1 = [for_each_token('var') { [value_of_token('number')] }]
+        doc_1_1 = [value_of_token('a')]
+        doc_1_2 = [value_of_token('a'), value_of_token('b')]
+
+        doc_2 = [text_token('0123456789')]
+
+        expect(match(doc_1_1, doc_2, 'a' => /[0-9]+/)).to eq('a' => '0123456789')
+
+        res = match(doc_1, doc_2, 'number' => /[0-9]+/)
+
+        expect(res).to be_a(Hash)
+        expect(res['var'].length).to eq(1)
+        expect(res['var'][0]).to eq('number' => '0123456789')
+
+        expect(match(doc_1_2, doc_2, 'a' => /[0-9]+/, 'b' => /[0-9]+/)).to eq(nil)
+      end
+
+      it 'match multiple occurence of value-of-token' do
+        doc_1 = [for_each_token('var') { [value_of_token('number')] }]
+
+        doc_2 = [text_token(' 0 12    345     6789   ')]
+
+        res = match(doc_1, doc_2, 'number' => /[0-9]+/)
+
+        expect(res).to be_a(Hash)
+        expect(res['var'][0]).to eq('number' => '0')
+        expect(res['var'][1]).to eq('number' => '12')
+        expect(res['var'][2]).to eq('number' => '345')
+        expect(res['var'][3]).to eq('number' => '6789')
+      end
+
+      it 'match multiple occurence of text and if tokens' do
         doc_1 = [for_each_token('var') do
           [
             value_of_token('number'),
@@ -567,14 +619,14 @@ describe ReverseXSLT do
           ]
         end]
 
-        doc_2 = [text_token('123, 124   , 125,1000')]
+        doc_2 = [text_token('   123,   124  ,125, 1000  ')]
 
         expect do
           match(doc_1, doc_2)
-        end.to raise_error
+        end.to raise_error(ReverseXSLT::Error::AmbiguousMatch)
 
         expect do
-          res = match(doc_1, doc_2, {'number' => /[0-9]+/})
+          res = match(doc_1, doc_2, 'number' => /[0-9]+/)
 
           expect(res).to be_a(Hash)
 
@@ -586,6 +638,8 @@ describe ReverseXSLT do
           expect(res['var'][3]['number']).to eq('1000')
         end.to_not raise_error
       end
+
+      it 'should end dead branches as fast as possible'
     end
   end
 end
