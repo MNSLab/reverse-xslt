@@ -1,18 +1,26 @@
 require 'spec_helper'
+require 'token_helper'
 
 describe ReverseXSLT::Token do
+  include TokenHelper
+
   describe '.tokenize' do
     it 'removes [^_a-z] characters' do
-      expect(ReverseXSLT::Token::Token.tokenize('qwertyuiopasdfghjklzxcvbn_m1234567890!@#$%^&*()+-=<>,.?/;:[{}]')).to eq('qwertyuiopasdfghjklzxcvbn_m')
+      expect(ReverseXSLT::Token::Token.tokenize('qwertyuiopasdfghjklzxcvbn_m1234567890!@#$%^&*()+-=<>,.?/;:[{}]')).to eq('qwertyuiopasdfghjklzxcvbn_m1234567890')
+    end
+
+    it 'removes values from tokens' do
+      expect(tokenize('color = \'blue\' ')).to eq('color')
+      expect(tokenize('color = "blue"')).to eq('color')
     end
 
     it 'removes trailing/leading underscores' do
       expect(ReverseXSLT::Token::Token.tokenize('_a_')).to eq('a')
-      expect(ReverseXSLT::Token::Token.tokenize('1231____a_b_c___12312')).to eq('a_b_c')
+      expect(ReverseXSLT::Token::Token.tokenize('@!@____a_b_c___!@##$@#')).to eq('a_b_c')
     end
 
     it 'removes succesing underscores' do
-      expect(ReverseXSLT::Token::Token.tokenize('a_1_b_2_3_4_c_5_d')).to eq('a_b_c_d')
+      expect(ReverseXSLT::Token::Token.tokenize('a_!_b_@_#_$_c_%_d')).to eq('a_b_c_d')
     end
 
     it 'removes namespace prefixes' do
@@ -21,7 +29,7 @@ describe ReverseXSLT::Token do
 
     it 'removes some meta words' do
       expect(ReverseXSLT::Token::Token.tokenize('not/and/or')).to eq('')
-      expect(ReverseXSLT::Token::Token.tokenize('1not2not3')).to eq('')
+      expect(ReverseXSLT::Token::Token.tokenize('!not@not#')).to eq('')
     end
 
     it 'doesnt remove meta words from inside others' do
@@ -32,7 +40,7 @@ describe ReverseXSLT::Token do
     end
 
     it 'concatenate word with underscore' do
-      expect(ReverseXSLT::Token::Token.tokenize('code:languages/ruby/jruby != 2')).to eq('languages_ruby_jruby')
+      expect(ReverseXSLT::Token::Token.tokenize('code:languages/ruby/jruby != 2')).to eq('languages_ruby_jruby_2')
     end
 
     it 'works with real life examples' do
@@ -59,7 +67,7 @@ describe ReverseXSLT::Token do
       doc = Nokogiri::XML(xml % '<xsl:if test="a:var"></xsl:if>')
 
       token_1 = ReverseXSLT::Token::IfToken.new(doc.at('xsl|if'))
-      token_2 = ReverseXSLT::Token::IfToken.new('var')
+      token_2 = ReverseXSLT::Token::IfToken.new('if_var')
 
       expect(token_1).to eq(token_2)
     end

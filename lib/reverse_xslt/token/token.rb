@@ -36,11 +36,13 @@ module ReverseXSLT
 
       def self.tokenize(text)
         text
+          .gsub(/'.*?'/, '')
+          .gsub(/".*?"/, '')
           .gsub(/[a-z]+:/, '')
-          .gsub(/(?<=[^_a-z])(not|or|and)(?=[^_a-z])/, '_')
-          .gsub(/(?<=[^_a-z])(not|or|and)\z/, '_')
-          .gsub(/^(not|or|and)(?=[^_a-z])/, '_')
-          .gsub(/[^_a-z]/, '_')
+          .gsub(/(?<=[^_a-z0-9])(not|or|and)(?=[^_a-z0-9])/, '_')
+          .gsub(/(?<=[^_a-z0-9])(not|or|and)\z/, '_')
+          .gsub(/^(not|or|and)(?=[^_a-z0-9])/, '_')
+          .gsub(/[^_a-z0-9]/, '_')
           .gsub(/[_]+/, '_')
           .gsub(/\A_+/, '')
           .gsub(/_+\z/, '')

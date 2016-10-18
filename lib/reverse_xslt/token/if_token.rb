@@ -14,7 +14,8 @@ module ReverseXSLT
       #   will be used to name token
       #
       def initialize(tag = '')
-        name = extract_element_attribute(tag, 'test')
+        # if element is created from real xsl:if tag than prefix it with 'if'
+        name = (tag.respond_to?(:attr) ? 'if ' : '')+extract_element_attribute(tag, 'test')
 
         super(:if, Token.tokenize(name))
       end

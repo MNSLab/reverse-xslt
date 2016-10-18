@@ -5,7 +5,7 @@ module ReverseXSLT
       def initialize(tag = '')
         text = tag.respond_to?(:text) ? tag.text : tag.to_s
 
-        super(:text, text)
+        super(:text, text.gsub(/\s+/,' ').strip)
       end
     end
   end

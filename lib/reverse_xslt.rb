@@ -108,17 +108,17 @@ module ReverseXSLT
 
     re = tokens.map do |token|
       res = case token
-            when Token::TextToken
-              Regexp.quote(token.value.gsub(/\s+/, ' ').strip)
-            when Token::ValueOfToken
-              #raise Error::DuplicatedTokenName if used_names.include? token.value
-              name = "v#{names.size}"
-              names[name] = token
-              r = regexp[token.value] || '.*'
-              "(?<#{name}>#{r})"
-            else
-              raise Error::IllegalToken
-            end
+      when Token::TextToken
+        Regexp.quote(token.value.gsub(/\s+/, ' ').strip)
+      when Token::ValueOfToken
+        #raise Error::DuplicatedTokenName if used_names.include? token.value
+        name = "v#{names.size}"
+        names[name] = token
+        r = regexp[token.value] || '.*'
+        "(?<#{name}>#{r})"
+      else
+        raise Error::IllegalToken
+      end
       if last.is_a?(Token::ValueOfToken) and token.is_a?(Token::ValueOfToken)
         res = "\\s+#{res}"
       else
@@ -132,7 +132,7 @@ module ReverseXSLT
     text = text.gsub(/\s+/, ' ').strip
 
     re = '\A' + re + (prefix ? '' : '\z')
-
+    puts re
     matching = text.match(Regexp.new(re))
 
     return nil if matching.nil?
@@ -191,7 +191,10 @@ module ReverseXSLT
   #
   # @return [Hash]
   def self.merge_matchings!(x, y)
-    raise Error::DuplicatedTokenName unless (x.keys & y.keys).empty?
+    (x.keys & y.keys).each do |k|
+      Error::DuplicatedTokenName.new("#{k}: #{x[k]}, #{y[k]}") if x[k] != y[k]
+    end
+
     x.merge! y
   end
 
@@ -331,12 +334,14 @@ module ReverseXSLT
         merge_matchings!(res, token.matching)
       when Token::ForEachToken, Token::ValueOfToken
         unless token.matching.nil?
-          raise Error::DuplicatedTokenName if res[token.value]
+          if res[token.value] and res[token.value] != token.matching
+            raise Error::DuplicatedTokenName.new(token.value) if res[token.value]
+          end
           res[token.value] = token.matching
         end
       when Token::IfToken
         unless token.matching.nil?
-          raise Error::DuplicatedTokenName if res[token.value]
+          raise Error::DuplicatedTokenName.new(token.value) if res[token.value]
           res[token.value] = token.matching
           merge_matchings!(res, extract_matching(token.children))
         end
@@ -351,8 +356,11 @@ module ReverseXSLT
       case token
       when Token::TextToken
         token.value
-      when Token::IfToken, Token::ForEachToken, Token::ValueOfToken
+      when Token::IfToken, Token::ValueOfToken
         token.matching
+      when Token::ForEachToken
+        # TODO: for-each-token should return consistent extracted_text not a hash
+        token.matching.map{|x| 'x'}.join(' ')
       when Token::TagToken
         extract_text(token.children)
       end

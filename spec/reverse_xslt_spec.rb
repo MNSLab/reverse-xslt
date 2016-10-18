@@ -55,7 +55,7 @@ describe ReverseXSLT do
       ReverseXSLT.parse_node(doc.root.children.first).tap do |result|
         expect(result).to be_a(ReverseXSLT::Token::IfToken)
         expect(result.type).to be(:if)
-        expect(result.value).to eq('abra_kadabra_alakazam')
+        expect(result.value).to eq('if_abra_kadabra_alakazam')
         expect(result.children).to be_empty
       end
     end
@@ -160,6 +160,23 @@ describe ReverseXSLT do
       end.not_to raise_error
     end
     context 'using value-of-token and text-token' do
+      it 'match duplicated value-of-token when they have the same value' do
+        doc_1 = [value_of_token('value_1'), value_of_token('value_2')]
+        doc_2 = [value_of_token('value'), value_of_token('value')]
+
+        expect(
+          match(doc_1, [text_token('123 124')], 'value_1' => /[0-9]+/, 'value_2' => /[0-9]+/)
+        ).to eq({'value_1' => '123', 'value_2' => '124'})
+
+        expect {
+          match(doc_2, [text_token('123 124')], 'value' => /[0-9]+/)
+        }.to raise_error(ReverseXSLT::Error::DuplicatedTokenName)
+
+        expect(
+          match(doc_2, [text_token('123 123')], 'value' => /[0-9]+/)
+        ).to eq({'value' => '123'})
+      end
+
       it 'match concatenated text-token and value-of-token' do
         doc_1 = [text_token('A'), value_of_token('number')]
         doc_2 = [text_token('A10')]
@@ -427,6 +444,15 @@ describe ReverseXSLT do
     end
 
     context 'using if-token' do
+      it 'works with nested if-token' do
+        pending
+        doc_1 = [if_token('v1'){[if_token('v2'){[text_token('test')]}, text_token(',')]}]
+
+        res = match(doc_1, [text_token('test,')])
+        expect(res).to be_a(Hash)
+        expect(res['v1']).to eq('test,')
+      end
+
       it 'allows to match or not given content' do
         doc_1 = [if_token('var') { [tag_token('div')] }]
         expect(match([], [tag_token('span')])).to be_nil
@@ -546,14 +572,14 @@ describe ReverseXSLT do
 
         res = match(parse(xml_1), parse(xml_2))
 
-        expect(res).to eq('zamieszczanie_obowiazkowe' => 'obowiązkowe',
-                          'rodzaj_zamowienia' => 'Roboty budowlane',
+        expect(res).to eq('if_zamieszczanie_obowiazkowe' => 'obowiązkowe',
+                          'if_rodzaj_zamowienia' => 'Roboty budowlane',
                           'pozycja' => '319424',
                           'biuletyn' => '2016',
                           'data_publikacji' => '2016-10-07',
                           'zamawiajacy_miejscowosc' => 'Kraków',
                           'nazwa_nadana_zamowieniu' => 'Wykonanie robót budowlanych w zakresie bieżącej konserwacji pomieszczeń budynku na os. Krakowiaków 46 w Krakowie',
-                          'pozycja_data_publikacji_biuletyn' => "Ogłoszenie nr 319424 - 2016 z dnia 2016-10-07 r.")
+                          'if_pozycja_data_publikacji_biuletyn' => "Ogłoszenie nr 319424 - 2016 z dnia 2016-10-07 r.")
       end
     end
 
@@ -640,6 +666,64 @@ describe ReverseXSLT do
       end
 
       it 'should end dead branches as fast as possible'
+    end
+
+    describe '.extract_text' do
+      it 'extracts text from text-token' do
+        doc_1 = [if_token('test') { [text_token('text') ]}]
+
+        res = match(doc_1, [text_token('text')])
+        expect(res['test']).to eq('text')
+      end
+
+      it 'extracts text from value-of-token' do
+        doc_1 = [if_token('test') { [value_of_token('text') ]}]
+
+        res = match(doc_1, [text_token('text')])
+        expect(res['test']).to eq('text')
+      end
+
+      it 'extracts text from if-token' do
+        pending
+        doc_1 = [if_token('test') { [if_token('text'){ [text_token('text')]}, text_token(',')]}]
+
+        res = match(doc_1, [text_token('text,')])
+        puts res.inspect
+        expect(res['test']).to eq('text,')
+
+        res = match(doc_1, [text_token(',')])
+        expect(res['test']).to eq(',')
+      end
+
+      # it
+    end
+
+    context 'works on real life examples' do
+      require 'open-uri'
+
+      it 'document type 406' do
+        doc = Nokogiri::XML(open('http://crd.uzp.gov.pl/406/styl.xslt'))
+        xml = doc.at('body')
+        doc_2 = Nokogiri::XML(open('http://bzp.uzp.gov.pl/Out/Browser.aspx?id=7939f6a3-9153-4931-b1c2-f986cb5240f9&path=2016%5c10%5c20161017%5c324700_2016.html'))
+
+        html = doc_2.css('body body').first
+
+        xml = ReverseXSLT::parse(xml)
+        html = ReverseXSLT::parse(html)
+
+        html.shift until (html.first.is_a?(ReverseXSLT::Token::TagToken) and html.first.value == 'div')
+
+
+        res = match(xml, html)
+        puts "\033[1;34m"
+        puts res
+        puts "\033[0m"
+
+        expect(res).to be_a(Hash)
+        expect(res['pozycja']).to eq('324700')
+        expect(res['zamowienie_bylo_przedmiotem_ogloszenia_numer']).to eq('324696')
+        expect(res['zmiany_w_ogloszeniu_edycja_zmiana']).to be_an(Array)
+      end
     end
   end
 end

@@ -32,4 +32,8 @@ module TokenHelper
   def match(x, y, r = {})
     ReverseXSLT.match(x, y, r)
   end
+
+  def tokenize(x)
+    ReverseXSLT::Token::Token.tokenize(x)
+  end
 end
